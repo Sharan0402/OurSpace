@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: our-space-backend
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Cognito acts as the OIDC issuer. Tokens are validated against its JWKS.
+          issuer-uri: https://cognito-idp.${AWS_REGION:us-east-1}.amazonaws.com/${COGNITO_USER_POOL_ID:}
+
+app:
+  # "memory" = in-process store (runnable with zero AWS, great for local dev)
+  # "dynamo" = Amazon DynamoDB (production)
+  persistence: ${APP_PERSISTENCE:memory}
+
+  # App-level allow-list: only these two Cognito `sub`s may use Our Space.
+  authorized-user-ids: ${AUTHORIZED_USER_IDS:}
+
+  # CORS origin for the Next.js frontend
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:3000}
+
+  crypto:
+    # Base64-encoded 256-bit key used to encrypt Spotify refresh tokens at rest.
+    # Generate: openssl rand -base64 32
+    key: ${TOKEN_ENCRYPTION_KEY:}
+
+  dynamo:
+    region: ${AWS_REGION:us-east-1}
+    # Set for DynamoDB Local, e.g. http://localhost:8000. Leave blank for AWS.
+    endpoint: ${DYNAMO_ENDPOINT:}
+    tables:
+      messages: ${TABLE_MESSAGES:our-space-messages}
+      conversations: ${TABLE_CONVERSATIONS:our-space-conversations}
+      spotify-tokens: ${TABLE_SPOTIFY_TOKENS:our-space-spotify-tokens}
+      sync-sessions: ${TABLE_SYNC_SESSIONS:our-space-sync-sessions}
+
+  spotify:
+    client-id: ${SPOTIFY_CLIENT_ID:}
+    client-secret: ${SPOTIFY_CLIENT_SECRET:}
+    redirect-uri: ${SPOTIFY_REDIRECT_URI:http://localhost:8080/api/spotify/callback}
+    scopes: >-
+      streaming user-read-email user-read-private
+      user-modify-playback-state user-read-playback-state
+
+logging:
+  level:
+    com.ourspace: INFO
