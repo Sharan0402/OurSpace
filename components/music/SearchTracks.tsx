@@ -17,18 +17,24 @@ export function SearchTracks({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
     if (!query.trim()) {
       setResults([]);
+      setError(null);
       return;
     }
     setLoading(true);
+    setError(null);
     debounce.current = setTimeout(async () => {
       try {
         setResults(await searchTracks(query));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Search failed");
+        setResults([]);
       } finally {
         setLoading(false);
       }
@@ -62,7 +68,10 @@ export function SearchTracks({
             <Spinner /> Searching…
           </div>
         )}
-        {!loading &&
+        {!loading && error && (
+          <p className="px-2 py-3 text-sm text-destructive">{error}</p>
+        )}
+        {!loading && !error &&
           results.map((track) => (
             <button
               key={track.id}

@@ -22,23 +22,27 @@ interface StoredSession {
 
 export function readSession(): StoredSession | null {
   if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as StoredSession;
+      if (parsed.expiresAt >= Date.now()) return parsed;
+    }
+  } catch {
+    /* fall through */
+  }
+  // In mock mode, default to a stable "you" identity so the app is usable even
+  // before an explicit sign-in. Signing in (incl. as "partner") persists the
+  // real identity above, which is what distinguishes two browsers.
   if (config.useMocks) {
     return {
       idToken: MOCK_TOKEN,
       userId: "user_you",
-      displayName: "You",
+      displayName: "Appy",
       expiresAt: Date.now() + 1000 * 60 * 60 * 24,
     };
   }
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredSession;
-    if (parsed.expiresAt < Date.now()) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 export function writeSession(session: StoredSession): void {

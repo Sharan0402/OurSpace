@@ -55,6 +55,11 @@ export interface SpotifyPlayer {
   seek(positionMs: number): Promise<void>;
   previousTrack(): Promise<void>;
   nextTrack(): Promise<void>;
+  /**
+   * Unlocks audio output on this device. Must be called from within a user
+   * gesture so later (event-driven) playback isn't blocked by autoplay policy.
+   */
+  activateElement?(): Promise<void>;
 }
 
 declare global {

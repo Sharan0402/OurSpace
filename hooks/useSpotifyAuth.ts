@@ -7,7 +7,7 @@ import { useMusicContext } from "@/context/MusicProvider";
  * UI only ever sees generic state — never Spotify SDK internals.
  */
 export function useSpotifyAuth() {
-  const { auth, connectSpotify } = useMusicContext();
+  const { auth, connectSpotify, disconnectSpotify } = useMusicContext();
   return {
     status: auth.status,
     profile: auth.profile,
@@ -15,5 +15,6 @@ export function useSpotifyAuth() {
     isConnected: auth.status === "connected",
     isPremiumRequired: auth.status === "premium_required",
     connectSpotify,
+    disconnectSpotify,
   };
 }

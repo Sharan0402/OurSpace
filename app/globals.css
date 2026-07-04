@@ -4,34 +4,34 @@
 
 @layer base {
   :root {
-    /* Cozy romantic dark theme (dark-only app) */
-    --background: 280 45% 6%;
-    --foreground: 330 25% 96%;
+    /* Warm "sunset ember" dark theme — coral → amber over warm charcoal */
+    --background: 20 16% 7%;
+    --foreground: 30 20% 95%;
 
-    --card: 285 40% 10%;
-    --card-foreground: 330 20% 96%;
+    --card: 22 15% 11%;
+    --card-foreground: 30 18% 95%;
 
-    --popover: 285 45% 9%;
-    --popover-foreground: 330 20% 96%;
+    --popover: 22 16% 10%;
+    --popover-foreground: 30 18% 95%;
 
-    --primary: 330 80% 62%;
-    --primary-foreground: 300 60% 12%;
+    --primary: 12 58% 60%;
+    --primary-foreground: 18 45% 10%;
 
-    --secondary: 270 40% 18%;
-    --secondary-foreground: 300 30% 92%;
+    --secondary: 24 20% 18%;
+    --secondary-foreground: 30 22% 92%;
 
-    --muted: 280 30% 16%;
-    --muted-foreground: 300 15% 68%;
+    --muted: 22 16% 16%;
+    --muted-foreground: 28 11% 65%;
 
-    --accent: 275 70% 55%;
-    --accent-foreground: 300 40% 96%;
+    --accent: 30 55% 55%;
+    --accent-foreground: 24 45% 10%;
 
-    --destructive: 0 72% 55%;
+    --destructive: 0 62% 52%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 300 30% 22%;
-    --input: 300 30% 20%;
-    --ring: 330 80% 62%;
+    --border: 24 15% 21%;
+    --input: 24 15% 20%;
+    --ring: 13 55% 56%;
 
     --radius: 1.25rem;
   }
@@ -54,6 +54,20 @@
     background-attachment: fixed;
     /* App-like: no bounce/overscroll glow, respect safe areas */
     overscroll-behavior-y: none;
+    /* Crisper text rendering */
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.011em;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.32);
+    color: hsl(var(--foreground));
+  }
+
+  /* Headings feel a touch tighter/premium */
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
   }
 
   /* Respect iOS safe areas so it feels app-like */
@@ -76,6 +90,33 @@
     box-shadow: theme("boxShadow.soft");
   }
 
+  /* Warm gradient text for wordmarks and headings */
+  .text-gradient {
+    @apply bg-gradient-to-br from-primary via-primary to-accent bg-clip-text text-transparent;
+  }
+
+  /* Live presence indicator with a soft pulsing halo */
+  .presence-dot {
+    @apply relative inline-block h-2.5 w-2.5 rounded-full bg-emerald-400;
+    box-shadow: 0 0 0 2px hsl(var(--card));
+  }
+  .presence-dot::after {
+    content: "";
+    @apply absolute inset-0 rounded-full bg-emerald-400;
+    animation: presence-pulse 2s ease-out infinite;
+  }
+
+  /* Subtle hairline separator that fades at the edges */
+  .hairline {
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--border) / 0.7),
+      transparent
+    );
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -85,11 +126,23 @@
   }
 }
 
+@keyframes presence-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
 /* Thin, warm scrollbar for chat */
 .chat-scroll::-webkit-scrollbar {
   width: 6px;
 }
 .chat-scroll::-webkit-scrollbar-thumb {
-  background: hsl(330 40% 40% / 0.5);
+  background: hsl(20 45% 42% / 0.5);
   border-radius: 999px;
 }

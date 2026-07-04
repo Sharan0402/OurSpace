@@ -1,5 +1,5 @@
 import { config } from "@/lib/config";
-import { getIdToken } from "@/lib/auth/session";
+import { getIdToken, readSession } from "@/lib/auth/session";
 
 export class ApiError extends Error {
   constructor(
@@ -36,6 +36,11 @@ export async function apiFetch<T>(
   if (!anonymous) {
     const token = await getIdToken();
     if (token) finalHeaders.set("Authorization", `Bearer ${token}`);
+    // Dev-only identity hint. The backend honors this ONLY when Cognito is
+    // disabled (local dev); in production the verified JWT `sub` wins and this
+    // header is ignored. Lets two browsers act as distinct users without Cognito.
+    const uid = readSession()?.userId;
+    if (uid) finalHeaders.set("X-Dev-User", uid);
   }
 
   const res = await fetch(url, {

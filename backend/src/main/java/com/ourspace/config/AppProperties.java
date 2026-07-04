@@ -10,10 +10,19 @@ public record AppProperties(
         String persistence,
         List<String> authorizedUserIds,
         String frontendOrigin,
+        Cognito cognito,
         Crypto crypto,
         Dynamo dynamo,
         Spotify spotify
 ) {
+    public record Cognito(String region, String userPoolId) {
+        /** OIDC issuer URI, or null when Cognito isn't configured (dev). */
+        public String issuerUri() {
+            if (userPoolId == null || userPoolId.isBlank()) return null;
+            return "https://cognito-idp." + region + ".amazonaws.com/" + userPoolId;
+        }
+    }
+
     public record Crypto(String key) {}
 
     public record Dynamo(String region, String endpoint, Tables tables) {

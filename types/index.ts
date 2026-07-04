@@ -146,7 +146,15 @@ export type RealtimeEvent =
   | { type: "sync.declined"; session: MusicSyncSession }
   | { type: "sync.countdown"; session: MusicSyncSession }
   | { type: "sync.started"; session: MusicSyncSession }
+  | { type: "sync.track_changed"; session: MusicSyncSession }
   | { type: "sync.tick"; sessionId: string; positionMs: number; at: number }
+  | {
+      type: "sync.playback";
+      sessionId: string;
+      by: string;
+      isPlaying: boolean;
+      positionMs: number;
+    }
   | { type: "sync.ended"; sessionId: string };
 
 export type RealtimeEventType = RealtimeEvent["type"];

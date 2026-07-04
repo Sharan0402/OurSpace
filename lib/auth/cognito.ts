@@ -52,7 +52,7 @@ const mockAdapter: CognitoAdapter = {
     return {
       idToken: "mock.dev.idtoken",
       userId: isPartner ? "user_partner" : "user_you",
-      displayName: isPartner ? "Amara" : "You",
+      displayName: isPartner ? "Lakku" : "Appy",
       expiresAt: Date.now() + 1000 * 60 * 60 * 24,
     };
   },

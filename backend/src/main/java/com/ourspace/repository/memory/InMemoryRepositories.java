@@ -77,5 +77,10 @@ public class InMemoryRepositories {
         public Optional<SpotifyTokenRecord> findByUserId(String userId) {
             return Optional.ofNullable(tokens.get(userId));
         }
+
+        @Override
+        public void deleteByUserId(String userId) {
+            tokens.remove(userId);
+        }
     }
 }

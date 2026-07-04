@@ -47,6 +47,10 @@ public class SpotifyService {
                 + "&client_id=" + enc(sp.clientId())
                 + "&scope=" + enc(sp.scopes())
                 + "&redirect_uri=" + enc(sp.redirectUri())
+                // Always show the consent/account screen so a user can switch to a
+                // different Spotify account instead of Spotify silently re-linking
+                // the one already signed in at accounts.spotify.com.
+                + "&show_dialog=true"
                 + "&state=" + enc(state);
     }
 
@@ -79,6 +83,11 @@ public class SpotifyService {
         record.setProduct(str(me, "product"));
         record.setUpdatedAt(Instant.now().toString());
         return tokens.save(record);
+    }
+
+    /** Forget the stored Spotify link for a user so they can connect afresh. */
+    public void disconnect(String userId) {
+        tokens.deleteByUserId(userId);
     }
 
     public record AccessToken(String accessToken, long expiresAt, String product) {}

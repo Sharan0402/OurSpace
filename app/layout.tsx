@@ -14,11 +14,16 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Our Space",
   },
+  // Standardized equivalent of apple-mobile-web-app-capable (silences Chrome's
+  // deprecation warning); the Apple tag above is kept for iOS standalone mode.
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#120913",
+  themeColor: "#141010",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

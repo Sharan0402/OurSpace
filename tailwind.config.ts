@@ -59,10 +59,11 @@ const config: Config = {
       },
       backgroundImage: {
         "cozy-gradient":
-          "radial-gradient(1200px 800px at 10% -10%, hsl(330 70% 20% / 0.55), transparent 55%), radial-gradient(1000px 700px at 110% 10%, hsl(270 70% 22% / 0.5), transparent 55%), linear-gradient(180deg, hsl(265 40% 8%), hsl(280 45% 6%))",
+          "radial-gradient(1200px 800px at 8% -10%, hsl(14 45% 20% / 0.4), transparent 58%), radial-gradient(1000px 700px at 112% 8%, hsl(30 40% 20% / 0.32), transparent 58%), linear-gradient(180deg, hsl(20 18% 8%), hsl(20 16% 6%))",
       },
       boxShadow: {
-        glow: "0 0 0 1px hsl(330 80% 60% / 0.15), 0 20px 60px -20px hsl(330 80% 50% / 0.35)",
+        // Calm, uncolored elevation (no neon halo).
+        glow: "0 6px 22px -14px rgba(0,0,0,0.6)",
         soft: "0 8px 30px -12px rgba(0,0,0,0.6)",
       },
       keyframes: {
@@ -77,11 +78,21 @@ const config: Config = {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-6px)" },
+        },
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 1.5s infinite",
+        float: "float 4s ease-in-out infinite",
+        "fade-in-up": "fade-in-up 0.4s ease-out both",
       },
     },
   },

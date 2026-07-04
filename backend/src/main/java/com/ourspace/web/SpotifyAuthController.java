@@ -4,6 +4,7 @@ import com.ourspace.config.AppProperties;
 import com.ourspace.service.CurrentUser;
 import com.ourspace.service.SpotifyService;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -31,6 +32,9 @@ import java.util.Map;
 @RequestMapping("/api/spotify")
 public class SpotifyAuthController {
 
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(SpotifyAuthController.class);
+
     private final SpotifyService spotify;
     private final AppProperties props;
 
@@ -51,7 +55,8 @@ public class SpotifyAuthController {
 
     @GetMapping("/callback")
     public void callback(
-            @RequestParam String code,
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String error,
             @RequestParam(required = false) String state,
             HttpServletResponse response
     ) throws IOException {
@@ -59,10 +64,22 @@ public class SpotifyAuthController {
         String userId = decoded[0].isBlank() ? CurrentUser.id() : decoded[0];
         String returnTo = decoded[1].isBlank() ? props.frontendOrigin() : decoded[1];
 
+        // Spotify redirects here with `?error=...` (no code) when consent fails,
+        // e.g. the account isn't on the app's allow-list (Development Mode) or the
+        // user cancelled. Surface the real reason instead of a cryptic 400.
+        if (code == null || code.isBlank()) {
+            String reason = (error == null || error.isBlank()) ? "no_authorization_code" : error;
+            log.warn("Spotify link failed for user {}: {}", userId, reason);
+            response.sendRedirect(returnTo + "?spotify=error&reason="
+                    + URLEncoder.encode(reason, StandardCharsets.UTF_8));
+            return;
+        }
+
         try {
             spotify.linkAccount(userId, code);
             response.sendRedirect(returnTo + "?spotify=connected");
         } catch (Exception e) {
+            log.warn("Spotify token exchange failed for user {}: {}", userId, e.getMessage());
             response.sendRedirect(returnTo + "?spotify=error&reason="
                     + URLEncoder.encode(e.getMessage() == null ? "unknown" : e.getMessage(),
                     StandardCharsets.UTF_8));
@@ -76,6 +93,13 @@ public class SpotifyAuthController {
                 "accessToken", t.accessToken(),
                 "expiresAt", t.expiresAt(),
                 "product", t.product() == null ? "unknown" : t.product());
+    }
+
+    /** Unlink the caller's Spotify account so they can connect a different one. */
+    @DeleteMapping("/token")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void disconnect() {
+        spotify.disconnect(CurrentUser.id());
     }
 
     // ---- state helpers ----

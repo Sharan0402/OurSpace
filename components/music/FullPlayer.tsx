@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Music, Search as SearchIcon, Users, LogOut } from "lucide-react";
+import { ChevronDown, Music, Search as SearchIcon, Users, LogOut, Unlink } from "lucide-react";
 import { useMusicPlayer } from "@/hooks/useMusicPlayer";
 import { useMusicSync } from "@/hooks/useMusicSync";
 import { useSpotifyAuth } from "@/hooks/useSpotifyAuth";
@@ -16,7 +16,7 @@ import { artistsToString, formatDuration } from "@/lib/utils";
 /** The full-screen (mobile) / full-panel (desktop) music experience. */
 export function FullPlayer({ onCollapse }: { onCollapse?: () => void }) {
   const { playback, seek } = useMusicPlayer();
-  const { isConnected } = useSpotifyAuth();
+  const { isConnected, disconnectSpotify } = useSpotifyAuth();
   const { status, isSyncing, requestSync, leaveSync } = useMusicSync();
   const [showSearch, setShowSearch] = useState(false);
 
@@ -112,6 +112,16 @@ export function FullPlayer({ onCollapse }: { onCollapse?: () => void }) {
               </Button>
             )}
           </div>
+
+          {/* Disconnect / switch Spotify account */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground"
+            onClick={() => void disconnectSpotify()}
+          >
+            <Unlink className="h-3.5 w-3.5" /> Disconnect Spotify
+          </Button>
         </div>
       )}
     </div>

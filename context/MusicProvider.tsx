@@ -39,6 +39,7 @@ import type { SpotifyPlayer } from "@/lib/spotify/sdk-types";
 import { createSpotifyPlayer } from "@/lib/spotify/playback";
 import {
   beginSpotifyLogin,
+  disconnectSpotify as apiDisconnectSpotify,
   fetchSpotifyToken,
   searchTracks as spotifySearch,
   startPlayback,
@@ -47,10 +48,18 @@ import { createSyncSession, patchSyncSession } from "@/lib/api/sync";
 
 const CONVERSATION_ID = "conv_our_space";
 
+/**
+ * When true, use REAL Spotify (OAuth via backend + Web Playback SDK + Web API).
+ * Independent of `config.useMocks` so Spotify can be tested while auth/realtime
+ * stay mocked (no Cognito needed).
+ */
+const SPOTIFY_LIVE = config.spotify.live;
+
 export interface MusicProviderApi {
   // ---- auth ----
   auth: SpotifyAuthState;
   connectSpotify: () => void;
+  disconnectSpotify: () => Promise<void>;
 
   // ---- player ----
   playback: PlaybackState;
@@ -106,6 +115,17 @@ export function SpotifyMusicProvider({
   const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const positionTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Latest sync state, readable from stable callbacks (e.g. playTrack) without
+  // rebuilding them on every render. Assigned during render so they always
+  // reflect the current committed values.
+  const syncStatusRef = useRef<SyncStatus>("idle");
+  const syncSessionRef = useRef<MusicSyncSession | null>(null);
+  const playbackRef = useRef<PlaybackState>(playback);
+  const runCountdownRef = useRef<((s: MusicSyncSession) => void) | null>(null);
+  syncStatusRef.current = syncStatus;
+  syncSessionRef.current = syncSession;
+  playbackRef.current = playback;
+
   // ---------------------------------------------------------------------
   // Token management (short-lived Spotify access token from the backend)
   // ---------------------------------------------------------------------
@@ -124,11 +144,11 @@ export function SpotifyMusicProvider({
   // Connect Spotify: OAuth (redirect) + Web Playback SDK device
   // ---------------------------------------------------------------------
   const connectSpotify = useCallback(() => {
-    if (config.useMocks) {
+    if (!SPOTIFY_LIVE) {
       // Simulate a connected premium account + active device.
       setAuth({
         status: "connected",
-        profile: { id: "spotify_mock", displayName: "You", product: "premium" },
+        profile: { id: "spotify_mock", displayName: "Appy", product: "premium" },
       });
       setPlayback((p) => ({
         ...p,
@@ -142,9 +162,31 @@ export function SpotifyMusicProvider({
     beginSpotifyLogin();
   }, []);
 
+  // Disconnect Spotify: forget the backend link + tear down the local SDK device
+  // so the user lands back on "Connect Spotify" and can link a different account.
+  const disconnectSpotify = useCallback(async () => {
+    try {
+      await apiDisconnectSpotify();
+    } finally {
+      playerRef.current?.disconnect();
+      playerRef.current = null;
+      tokenRef.current = null;
+      setAuth({ status: "disconnected" });
+      setPlayback({
+        isConnected: false,
+        isActive: false,
+        isPlaying: false,
+        track: null,
+        positionMs: 0,
+        durationMs: 0,
+        deviceId: null,
+      });
+    }
+  }, []);
+
   // Initialize the SDK player once we (believe we) have a linked account.
   useEffect(() => {
-    if (config.useMocks) return;
+    if (!SPOTIFY_LIVE) return;
     let cancelled = false;
 
     async function init() {
@@ -238,29 +280,33 @@ export function SpotifyMusicProvider({
   // ---------------------------------------------------------------------
   const searchTracks = useCallback(
     async (query: string) => {
-      const token = config.useMocks ? "mock" : await getToken();
+      const token = SPOTIFY_LIVE ? await getToken() : "mock";
       return spotifySearch(query, token);
     },
     [getToken],
   );
 
-  const playTrack = useCallback(
+  // Low-level playback on THIS client only (no realtime broadcast).
+  const playLocal = useCallback(
     async (uri: string, positionMs = 0) => {
-      if (config.useMocks) {
+      if (!SPOTIFY_LIVE) {
         setPlayback((p) => ({
           ...p,
           isActive: true,
           isPlaying: true,
           positionMs,
           durationMs: p.durationMs || 210000,
-          track: p.track ?? {
-            uri,
-            id: uri.split(":").pop() ?? uri,
-            name: "Our Song",
-            albumName: "",
-            artists: [{ id: "a", name: "Spotify" }],
-            durationMs: 210000,
-          },
+          track:
+            p.track && p.track.uri === uri
+              ? p.track
+              : {
+                  uri,
+                  id: uri.split(":").pop() ?? uri,
+                  name: "Our Song",
+                  albumName: "",
+                  artists: [{ id: "a", name: "Spotify" }],
+                  durationMs: 210000,
+                },
         }));
         return;
       }
@@ -272,29 +318,116 @@ export function SpotifyMusicProvider({
     [getToken, playback.deviceId],
   );
 
-  const pause = useCallback(async () => {
-    if (config.useMocks) return setPlayback((p) => ({ ...p, isPlaying: false }));
-    await playerRef.current?.pause();
+  // Unlock audio output within a user gesture so later event-driven playback
+  // (e.g. when the partner accepts) isn't blocked by browser autoplay policy.
+  const activatePlayback = useCallback(async () => {
+    try {
+      await playerRef.current?.activateElement?.();
+    } catch {
+      /* not supported / already active — ignore */
+    }
   }, []);
+
+  // Public play. During an active shared session, picking a new track must
+  // re-sync BOTH listeners to it — otherwise the partner keeps playing the old
+  // song and the drift loop fights the mismatched timeline. So we broadcast a
+  // track change and run a fresh countdown on both sides instead of playing
+  // only locally.
+  const playTrack = useCallback(
+    async (uri: string, positionMs = 0) => {
+      void activatePlayback();
+      const s = syncStatusRef.current;
+      const inActiveSync =
+        !!syncSessionRef.current &&
+        (s === "synced" ||
+          s === "countdown" ||
+          s === "resyncing" ||
+          s === "drift_detected");
+      if (inActiveSync) {
+        const sharedStartAt = Date.now() + SYNC_COUNTDOWN_SECONDS * 1000 + 500;
+        const updated: MusicSyncSession = {
+          ...syncSessionRef.current!,
+          trackUri: uri,
+          startPositionMs: 0,
+          sharedStartAt,
+          updatedAt: new Date().toISOString(),
+        };
+        setSyncSession(updated);
+        realtime?.publish(CONVERSATION_ID, {
+          type: "sync.track_changed",
+          session: updated,
+        });
+        runCountdownRef.current?.(updated);
+        return;
+      }
+      await playLocal(uri, positionMs);
+    },
+    [playLocal, realtime, activatePlayback],
+  );
+
+  // Tell the partner to match our play/pause (shared control, either direction).
+  const broadcastPlayback = useCallback(
+    (isPlaying: boolean) => {
+      const sess = syncSessionRef.current;
+      if (!user || !sess || syncStatusRef.current !== "synced") return;
+      realtime?.publish(CONVERSATION_ID, {
+        type: "sync.playback",
+        sessionId: sess.sessionId,
+        by: user.id,
+        isPlaying,
+        positionMs: playbackRef.current.positionMs,
+      });
+    },
+    [realtime, user],
+  );
+
+  // Apply the partner's play/pause WITHOUT re-broadcasting (avoids a loop).
+  const applyRemotePlayback = useCallback(
+    async (isPlaying: boolean, positionMs: number) => {
+      if (!SPOTIFY_LIVE) {
+        setPlayback((p) => ({ ...p, isPlaying, positionMs }));
+        return;
+      }
+      const player = playerRef.current;
+      if (!player) return;
+      try {
+        if (Math.abs(playbackRef.current.positionMs - positionMs) > SYNC_DRIFT_THRESHOLD_MS) {
+          await player.seek(positionMs);
+        }
+        if (isPlaying) await player.resume();
+        else await player.pause();
+      } catch (e) {
+        console.error("[sync] failed to apply partner play/pause:", e);
+      }
+    },
+    [],
+  );
+
+  const pause = useCallback(async () => {
+    if (!SPOTIFY_LIVE) setPlayback((p) => ({ ...p, isPlaying: false }));
+    else await playerRef.current?.pause();
+    broadcastPlayback(false);
+  }, [broadcastPlayback]);
 
   const resume = useCallback(async () => {
-    if (config.useMocks) return setPlayback((p) => ({ ...p, isPlaying: true }));
-    await playerRef.current?.resume();
-  }, []);
+    if (!SPOTIFY_LIVE) setPlayback((p) => ({ ...p, isPlaying: true }));
+    else await playerRef.current?.resume();
+    broadcastPlayback(true);
+  }, [broadcastPlayback]);
 
   const seek = useCallback(async (positionMs: number) => {
-    if (config.useMocks)
+    if (!SPOTIFY_LIVE)
       return setPlayback((p) => ({ ...p, positionMs }));
     await playerRef.current?.seek(positionMs);
   }, []);
 
   const next = useCallback(async () => {
-    if (config.useMocks) return;
+    if (!SPOTIFY_LIVE) return;
     await playerRef.current?.nextTrack();
   }, []);
 
   const previous = useCallback(async () => {
-    if (config.useMocks) return;
+    if (!SPOTIFY_LIVE) return;
     await playerRef.current?.previousTrack();
   }, []);
 
@@ -318,7 +451,16 @@ export function SpotifyMusicProvider({
           setCountdownValue(null);
           // Begin shared playback, offsetting for any time already elapsed.
           const elapsed = Math.max(0, Date.now() - startAt);
-          void playTrack(session.trackUri, session.startPositionMs + elapsed);
+          playLocal(session.trackUri, session.startPositionMs + elapsed).catch(
+            (e) => {
+              console.error("[sync] failed to start shared playback:", e);
+              setAuth((a) => ({
+                ...a,
+                status: "error",
+                error: "Playback couldn't start on this device.",
+              }));
+            },
+          );
           setSyncStatus("synced");
           return;
         }
@@ -327,35 +469,35 @@ export function SpotifyMusicProvider({
       };
       tick();
     },
-    [playTrack],
+    [playLocal],
   );
+  // Expose the latest countdown runner to stable callbacks (playTrack).
+  runCountdownRef.current = runCountdownThenPlay;
 
-  // Compare positions while synced; correct drift.
+  // Leader (the requester) broadcasts its TRUE playback position; the follower
+  // snaps to it (see the sync.tick handler below). Comparing the leader's real
+  // position against the follower's OWN clock sidesteps wall-clock skew between
+  // the two machines — the root cause of persistent drift.
   useEffect(() => {
     if (syncStatus !== "synced" || !syncSession) {
       clearSyncTimers();
       return;
     }
+    const isLeader = syncSession.requestedBy === user?.id;
     clearSyncTimers();
-    tickTimer.current = setInterval(async () => {
-      const startAt = syncSession.sharedStartAt ?? Date.now();
-      const expected = syncSession.startPositionMs + (Date.now() - startAt);
-      // Broadcast our position so the partner can compare too.
+    if (!isLeader) return; // the follower corrects reactively on each tick
+
+    const broadcast = () =>
       realtime?.publish(CONVERSATION_ID, {
         type: "sync.tick",
         sessionId: syncSession.sessionId,
-        positionMs: playback.positionMs,
+        positionMs: playbackRef.current.positionMs,
         at: Date.now(),
       });
-      const drift = Math.abs(playback.positionMs - expected);
-      if (drift > SYNC_DRIFT_THRESHOLD_MS) {
-        setSyncStatus("resyncing");
-        await seek(expected);
-        setSyncStatus("synced");
-      }
-    }, SYNC_TICK_INTERVAL_MS);
+    broadcast(); // immediate, so the follower locks on quickly after start
+    tickTimer.current = setInterval(broadcast, SYNC_TICK_INTERVAL_MS);
     return clearSyncTimers;
-  }, [syncStatus, syncSession, playback.positionMs, realtime, seek, clearSyncTimers]);
+  }, [syncStatus, syncSession, user?.id, realtime, clearSyncTimers]);
 
   // React to realtime sync events from the partner.
   useEffect(() => {
@@ -371,9 +513,34 @@ export function SpotifyMusicProvider({
         }
         case "sync.accepted":
         case "sync.countdown":
-        case "sync.started": {
+        case "sync.started":
+        case "sync.track_changed": {
           setIncomingRequest(null);
           runCountdownThenPlay(event.session);
+          break;
+        }
+        case "sync.tick": {
+          // Follower-only: snap to the leader's reported position when we've
+          // drifted past the threshold. Uses our own clock (no skew).
+          const sess = syncSessionRef.current;
+          if (!sess || event.sessionId !== sess.sessionId) break;
+          if (sess.requestedBy === user?.id) break; // leader is the reference
+          if (syncStatusRef.current !== "synced") break;
+          const drift = Math.abs(
+            playbackRef.current.positionMs - event.positionMs,
+          );
+          if (drift > SYNC_DRIFT_THRESHOLD_MS) {
+            void seek(event.positionMs);
+          }
+          break;
+        }
+        case "sync.playback": {
+          // Either partner pausing/resuming controls both. Ignore our own echo.
+          const sess = syncSessionRef.current;
+          if (!sess || event.sessionId !== sess.sessionId) break;
+          if (event.by === user?.id) break;
+          if (syncStatusRef.current !== "synced") break;
+          void applyRemotePlayback(event.isPlaying, event.positionMs);
           break;
         }
         case "sync.declined": {
@@ -396,11 +563,19 @@ export function SpotifyMusicProvider({
       }
     });
     return unsub;
-  }, [realtime, user?.id, runCountdownThenPlay, clearSyncTimers]);
+  }, [
+    realtime,
+    user?.id,
+    runCountdownThenPlay,
+    clearSyncTimers,
+    seek,
+    applyRemotePlayback,
+  ]);
 
   const requestSync = useCallback(
     async (trackUri: string) => {
       if (!user) return;
+      void activatePlayback(); // unlock audio now; playback starts on accept
       const now = new Date().toISOString();
       const base: MusicSyncSession = {
         sessionId: uid("sync"),
@@ -420,13 +595,14 @@ export function SpotifyMusicProvider({
       setSyncStatus("waiting_for_partner");
       realtime?.publish(CONVERSATION_ID, { type: "sync.requested", session });
     },
-    [user, playback.track, playback.positionMs, realtime],
+    [user, playback.track, playback.positionMs, realtime, activatePlayback],
   );
 
   const acceptSync = useCallback(
     async (sessionId: string) => {
       const req = incomingRequest;
       if (!req || !user) return;
+      void activatePlayback(); // unlock audio within this click gesture
       const sharedStartAt = Date.now() + SYNC_COUNTDOWN_SECONDS * 1000 + 500;
       const accepted: MusicSyncSession = {
         ...req,
@@ -448,7 +624,7 @@ export function SpotifyMusicProvider({
       });
       runCountdownThenPlay(accepted);
     },
-    [incomingRequest, user, realtime, runCountdownThenPlay],
+    [incomingRequest, user, realtime, runCountdownThenPlay, activatePlayback],
   );
 
   const declineSync = useCallback(
@@ -490,6 +666,7 @@ export function SpotifyMusicProvider({
     () => ({
       auth,
       connectSpotify,
+      disconnectSpotify,
       playback,
       searchTracks,
       playTrack,
@@ -510,6 +687,7 @@ export function SpotifyMusicProvider({
     [
       auth,
       connectSpotify,
+      disconnectSpotify,
       playback,
       searchTracks,
       playTrack,

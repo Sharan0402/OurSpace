@@ -9,13 +9,13 @@ import type { ChatMessage, Conversation, Track, User } from "@/types";
 export const MOCK_USERS: Record<string, User> = {
   you: {
     id: "user_you",
-    displayName: "You",
+    displayName: "Appy",
     avatarUrl: undefined,
     isSelf: true,
   },
   partner: {
     id: "user_partner",
-    displayName: "Amara",
+    displayName: "Lakku",
     avatarUrl: undefined,
     isSelf: false,
   },
@@ -23,6 +23,17 @@ export const MOCK_USERS: Record<string, User> = {
 
 export const CURRENT_USER: User = MOCK_USERS.you;
 export const PARTNER_USER: User = MOCK_USERS.partner;
+
+/**
+ * The OTHER participant relative to the signed-in user. In a two-person space
+ * this is what the chat header/sidebar should show — Appy sees Lakku, Lakku
+ * sees Appy. Defaults to the partner when the current user is unknown.
+ */
+export function otherUser(currentUserId: string | undefined): User {
+  return currentUserId === MOCK_USERS.partner.id
+    ? MOCK_USERS.you
+    : MOCK_USERS.partner;
+}
 
 export const MOCK_CONVERSATION: Conversation = {
   id: "conv_our_space",

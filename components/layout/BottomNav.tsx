@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { MessageCircle, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,12 +28,19 @@ export function BottomNav({
             onClick={() => onChange(id)}
             className={cn(
               "relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-xs font-medium transition-colors",
-              isActive ? "text-primary" : "text-muted-foreground",
+              isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
             )}
             aria-current={isActive ? "page" : undefined}
           >
-            <Icon className="h-5 w-5" />
-            {label}
+            {isActive && (
+              <motion.span
+                layoutId="bottomnav-pill"
+                className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary to-accent shadow-glow"
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              />
+            )}
+            <Icon className="relative h-5 w-5" />
+            <span className="relative">{label}</span>
           </button>
         );
       })}

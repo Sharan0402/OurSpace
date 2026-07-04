@@ -4,17 +4,18 @@ server:
 spring:
   application:
     name: our-space-backend
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          # Cognito acts as the OIDC issuer. Tokens are validated against its JWKS.
-          issuer-uri: https://cognito-idp.${AWS_REGION:us-east-1}.amazonaws.com/${COGNITO_USER_POOL_ID:}
 
 app:
   # "memory" = in-process store (runnable with zero AWS, great for local dev)
   # "dynamo" = Amazon DynamoDB (production)
   persistence: ${APP_PERSISTENCE:memory}
+
+  # Cognito acts as the OIDC issuer; tokens are validated against its JWKS.
+  # When userPoolId is blank (dev), JWT auth is disabled and the API is open
+  # locally — the frontend's mock auth is used instead.
+  cognito:
+    region: ${AWS_REGION:us-east-1}
+    user-pool-id: ${COGNITO_USER_POOL_ID:}
 
   # App-level allow-list: only these two Cognito `sub`s may use Our Space.
   authorized-user-ids: ${AUTHORIZED_USER_IDS:}

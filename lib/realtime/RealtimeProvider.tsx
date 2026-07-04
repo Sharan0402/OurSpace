@@ -20,9 +20,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     async function init() {
-      const connection = config.useMocks
-        ? createMockConnection()
-        : createStompConnection(await getIdToken());
+      const connection = config.realtimeLive
+        ? createStompConnection(await getIdToken())
+        : createMockConnection();
       if (cancelled) {
         connection.close();
         return;

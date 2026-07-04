@@ -102,5 +102,10 @@ public class DynamoRepositories {
             return Optional.ofNullable(table.getItem(
                     Key.builder().partitionValue(userId).build()));
         }
+
+        @Override
+        public void deleteByUserId(String userId) {
+            table.deleteItem(Key.builder().partitionValue(userId).build());
+        }
     }
 }

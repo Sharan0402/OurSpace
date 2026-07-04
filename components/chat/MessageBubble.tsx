@@ -24,10 +24,10 @@ export function MessageBubble({
     >
       <div
         className={cn(
-          "max-w-[78%] rounded-3xl px-4 py-2.5 text-[15px] leading-snug shadow-soft sm:max-w-[70%]",
+          "max-w-[78%] rounded-3xl px-4 py-2.5 text-[15px] leading-snug shadow-soft transition-shadow sm:max-w-[70%]",
           isSelf
-            ? "bg-gradient-to-br from-primary to-accent text-primary-foreground"
-            : "glass text-foreground",
+            ? "bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-glow"
+            : "glass text-foreground ring-1 ring-white/5",
           showTail && (isSelf ? "rounded-br-md" : "rounded-bl-md"),
         )}
       >

@@ -7,7 +7,6 @@ import { uid } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRealtime } from "@/lib/realtime/RealtimeProvider";
 import { fetchMessages, postMessage } from "@/lib/api/chat";
-import { MOCK_MESSAGES } from "@/data/mockData";
 
 interface UseChatResult {
   messages: ChatMessage[];
@@ -41,10 +40,9 @@ export function useChat(conversationId: string): UseChatResult {
 
     async function load() {
       try {
+        // Start every conversation empty — no seeded/prefilled history.
         const initial = config.useMocks
-          ? await new Promise<ChatMessage[]>((r) =>
-              setTimeout(() => r(MOCK_MESSAGES), 500),
-            )
+          ? []
           : await fetchMessages(conversationId);
         if (cancelled) return;
         setMessages(initial);

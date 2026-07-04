@@ -4,11 +4,12 @@ import { Heart, LogOut, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { PARTNER_USER } from "@/data/mockData";
+import { otherUser } from "@/data/mockData";
 
 /** Desktop-only left rail. */
 export function Sidebar() {
   const { user, signOut } = useAuth();
+  const partner = otherUser(user?.id);
 
   return (
     <aside className="hidden w-[264px] shrink-0 flex-col gap-4 p-4 lg:flex">
@@ -22,11 +23,14 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="glass flex items-center gap-3 rounded-2xl p-3">
-        <Avatar name={PARTNER_USER.displayName} src={PARTNER_USER.avatarUrl} />
+      <div className="glass flex items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-white/[0.06]">
+        <div className="relative">
+          <Avatar name={partner.displayName} src={partner.avatarUrl} />
+          <span className="presence-dot absolute -bottom-0.5 -right-0.5" />
+        </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{PARTNER_USER.displayName}</p>
-          <p className="text-xs text-primary/80">online</p>
+          <p className="truncate text-sm font-medium">{partner.displayName}</p>
+          <p className="text-xs text-emerald-300/90">online</p>
         </div>
       </div>
 
@@ -37,8 +41,8 @@ export function Sidebar() {
 
       <div className="mt-auto flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <Avatar name={user?.displayName ?? "You"} size={32} />
-          <span className="text-sm">{user?.displayName ?? "You"}</span>
+          <Avatar name={user?.displayName ?? "Appy"} size={32} />
+          <span className="text-sm">{user?.displayName ?? "Appy"}</span>
         </div>
         <Button
           variant="ghost"

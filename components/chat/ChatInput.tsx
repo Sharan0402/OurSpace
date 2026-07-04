@@ -43,13 +43,14 @@ export function ChatInput({
         placeholder="Message…"
         // enterKeyHint improves the mobile keyboard's action button
         enterKeyHint="send"
-        className="max-h-32 min-h-[44px] flex-1 resize-none rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className="max-h-32 min-h-[46px] flex-1 resize-none rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-3 text-[15px] text-foreground shadow-soft transition-colors placeholder:text-muted-foreground focus-visible:border-primary/40 focus-visible:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       />
       <Button
         type="submit"
         size="icon"
         disabled={sending || !value.trim()}
         aria-label="Send message"
+        className="h-[46px] w-[46px] shrink-0 transition-transform hover:scale-105"
       >
         {sending ? <Spinner /> : <Send className="h-5 w-5" />}
       </Button>

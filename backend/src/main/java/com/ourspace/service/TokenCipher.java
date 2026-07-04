@@ -38,7 +38,19 @@ public class TokenCipher {
                     0, dev, 0, 32);
             this.keySpec = new SecretKeySpec(dev, "AES");
         } else {
-            this.keySpec = new SecretKeySpec(Base64.getDecoder().decode(key), "AES");
+            byte[] bytes;
+            try {
+                bytes = Base64.getDecoder().decode(key.trim());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException(
+                        "TOKEN_ENCRYPTION_KEY must be valid base64. Generate one with: openssl rand -base64 32", e);
+            }
+            if (bytes.length != 16 && bytes.length != 24 && bytes.length != 32) {
+                throw new IllegalStateException(
+                        "TOKEN_ENCRYPTION_KEY must decode to 16, 24, or 32 bytes for AES (got "
+                                + bytes.length + "). Generate a 256-bit key with: openssl rand -base64 32");
+            }
+            this.keySpec = new SecretKeySpec(bytes, "AES");
         }
     }
 

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { config } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -45,7 +44,7 @@ export default function LoginPage() {
       >
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent">
-            <Heart className="h-7 w-7 text-primary-foreground" />
+            <Heart className="h-7 w-7 fill-primary-foreground/20 text-primary-foreground" />
           </div>
           <div>
             <h1 className="text-2xl font-semibold">Our Space</h1>
@@ -77,13 +76,6 @@ export default function LoginPage() {
             {busy ? <Spinner /> : "Enter our space"}
           </Button>
         </form>
-
-        {config.useMocks && (
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Dev mode: use any email/password. Tip: include “partner” in the email
-            to sign in as the other person (open a second browser tab).
-          </p>
-        )}
       </motion.div>
     </div>
   );
