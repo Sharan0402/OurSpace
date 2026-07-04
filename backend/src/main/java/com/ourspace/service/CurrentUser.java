@@ -17,6 +17,12 @@ public final class CurrentUser {
         if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
             return jwt.getSubject();
         }
+        // Built-in two-person auth: JwtAuthFilter sets the userId as a String principal.
+        if (auth != null && auth.isAuthenticated()
+                && auth.getPrincipal() instanceof String userId
+                && !"anonymousUser".equals(userId)) {
+            return userId;
+        }
         // Local-dev path (Cognito disabled): honor the X-Dev-User header so two
         // browsers can act as distinct users. Never reachable once a JWT is
         // required, so this cannot be used to spoof identity in production.

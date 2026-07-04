@@ -10,11 +10,26 @@ public record AppProperties(
         String persistence,
         List<String> authorizedUserIds,
         String frontendOrigin,
+        Auth auth,
         Cognito cognito,
         Crypto crypto,
         Dynamo dynamo,
         Spotify spotify
 ) {
+    /**
+     * Simple built-in auth for a tiny (two-person) private deployment: each user
+     * has a username + password; on login we issue an HS256 JWT signed with
+     * {@code jwtSecret}. Enabled only when a secret and at least one user exist.
+     */
+    public record Auth(String jwtSecret, List<User> users) {
+        public boolean enabled() {
+            return jwtSecret != null && !jwtSecret.isBlank()
+                    && users != null && !users.isEmpty();
+        }
+
+        public record User(String id, String displayName, String username, String password) {}
+    }
+
     public record Cognito(String region, String userPoolId) {
         /** OIDC issuer URI, or null when Cognito isn't configured (dev). */
         public String issuerUri() {

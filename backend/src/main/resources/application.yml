@@ -20,6 +20,20 @@ app:
   # App-level allow-list: only these two Cognito `sub`s may use Our Space.
   authorized-user-ids: ${AUTHORIZED_USER_IDS:}
 
+  # Built-in two-person auth. When APP_JWT_SECRET + passwords are set, /api/auth/login
+  # issues a signed JWT and the API + WebSocket require it. Leave blank for open local dev.
+  auth:
+    jwt-secret: ${APP_JWT_SECRET:}
+    users:
+      - id: user_you
+        display-name: Appy
+        username: ${APPY_USERNAME:appy}
+        password: ${APPY_PASSWORD:}
+      - id: user_partner
+        display-name: Lakku
+        username: ${LAKKU_USERNAME:lakku}
+        password: ${LAKKU_PASSWORD:}
+
   # CORS origin for the Next.js frontend
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:3000}
 

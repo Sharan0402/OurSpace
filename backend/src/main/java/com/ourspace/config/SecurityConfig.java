@@ -8,6 +8,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.ourspace.service.JwtService;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -29,15 +31,27 @@ import java.util.List;
 public class SecurityConfig {
 
     private final AppProperties props;
+    private final JwtService jwtService;
 
-    public SecurityConfig(AppProperties props) {
+    public SecurityConfig(AppProperties props, JwtService jwtService) {
         this.props = props;
+        this.jwtService = jwtService;
     }
+
+    /** Endpoints reachable without authentication in any mode. */
+    private static final String[] PUBLIC = {
+            "/health",
+            "/api/auth/login",
+            "/api/spotify/login",
+            "/api/spotify/callback",
+            "/ws/**", // STOMP CONNECT is authorized by the channel interceptor
+    };
 
     @Bean
     public SecurityFilterChain filterChain(
             HttpSecurity http,
-            AuthorizedUserFilter authorizedUserFilter
+            AuthorizedUserFilter authorizedUserFilter,
+            JwtAuthFilter jwtAuthFilter
     ) throws Exception {
         String issuer = props.cognito() == null ? null : props.cognito().issuerUri();
 
@@ -46,8 +60,18 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        // Built-in two-person auth (chosen for the small private deploy).
+        if (issuer == null && jwtService.enabled()) {
+            http
+                .authorizeHttpRequests(auth -> auth
+                    .requestMatchers(PUBLIC).permitAll()
+                    .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            return http.build();
+        }
+
         if (issuer == null) {
-            // Dev mode: no Cognito → open API (frontend uses mock auth).
+            // Dev mode: no auth configured → open API (frontend uses mock auth).
             http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
             return http.build();
         }

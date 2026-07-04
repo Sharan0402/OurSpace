@@ -63,22 +63,29 @@ const mockAdapter: CognitoAdapter = {
 };
 
 /**
- * Real Cognito adapter placeholder. Wire this to amazon-cognito-identity-js.
- * Kept minimal so the build stays dependency-light until you enable it.
+ * Real adapter for the small private deployment: verifies the username/password
+ * against the Java backend's built-in two-person auth (POST /api/auth/login),
+ * which returns a signed session token used as the bearer for all API/WS calls.
  */
-const cognitoAdapter: CognitoAdapter = {
-  async signIn() {
-    throw new Error(
-      "Real Cognito sign-in is not wired yet. Set NEXT_PUBLIC_USE_MOCKS=true " +
-        "for local dev, or implement this with amazon-cognito-identity-js / the Hosted UI.",
-    );
+const backendAdapter: CognitoAdapter = {
+  async signIn(email: string, password: string): Promise<SignInResult> {
+    const res = await fetch(`${config.apiBaseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: email.trim(), password }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(body?.message ?? "Invalid username or password");
+    }
+    return (await res.json()) as SignInResult;
   },
   async signOut() {
-    /* clear tokens / revoke via Hosted UI logout endpoint */
+    /* stateless JWT — the client just discards its stored token */
   },
   hostedUiUrl: () => buildHostedUiUrl(),
 };
 
 export const cognito: CognitoAdapter = config.useMocks
   ? mockAdapter
-  : cognitoAdapter;
+  : backendAdapter;

@@ -56,11 +56,11 @@ export default function LoginPage() {
 
         <form onSubmit={onSubmit} className="space-y-3">
           <Input
-            type="email"
-            placeholder="Email"
+            type="text"
+            placeholder="Username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
+            autoComplete="username"
             required
           />
           <Input
