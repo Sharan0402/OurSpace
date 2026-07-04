@@ -48,11 +48,17 @@ export function readSession(): StoredSession | null {
 export function writeSession(session: StoredSession): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  // The edge middleware runs server-side and can't see localStorage, so it
+  // checks for this cookie's presence to gate "/". It carries no secret (the
+  // real bearer token stays in localStorage) — it's a UX-level routing signal
+  // only; the backend independently validates the JWT on every request.
+  document.cookie = `${STORAGE_KEY}=1; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
 }
 
 export function clearSession(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
+  document.cookie = `${STORAGE_KEY}=; path=/; max-age=0`;
 }
 
 /** Returns a bearer token for API calls, or null when signed out. */
