@@ -239,6 +239,11 @@ export function SpotifyMusicProvider({
                 setAuth({ status: "premium_required", error: message });
               } else if (kind === "authentication_error") {
                 setAuth({ status: "disconnected", error: message });
+              } else if (kind === "playback_error") {
+                // Routine SDK event (e.g. a transport action fired before this
+                // device had a context loaded). The connection is still fine —
+                // don't drop back to the "Connect Spotify" gate over it.
+                console.warn("[spotify] playback_error:", message);
               } else {
                 setAuth((a) => ({ ...a, status: "error", error: message }));
               }

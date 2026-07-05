@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, LogOut, Sparkles } from "lucide-react";
+import { Heart, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -32,11 +32,6 @@ export function Sidebar() {
           <p className="truncate text-sm font-medium">{partner.displayName}</p>
           <p className="text-xs text-emerald-300/90">online</p>
         </div>
-      </div>
-
-      <div className="glass flex items-start gap-2 rounded-2xl p-3 text-xs text-muted-foreground">
-        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-        <p>Chat and listen to Spotify together, wherever you both are.</p>
       </div>
 
       <div className="mt-auto flex items-center justify-between px-1">
